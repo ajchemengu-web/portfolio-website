@@ -119,25 +119,44 @@ flask db upgrade
 
 ## 3. Frontend (Flutter Web)
 
-```bash
-cd frontend
-flutter build web --release --dart-define=API_BASE_URL=https://<your-railway-app>.up.railway.app/api
-```
+`frontend/Dockerfile` builds and serves the app in one image — no local
+Flutter SDK required, since the build happens inside Railway's build
+environment using the official `cirrusci/flutter` image. It's a two-stage
+build: stage 1 runs `flutter build web --release --dart-define=API_BASE_URL=...`,
+stage 2 serves the compiled output with nginx (`frontend/nginx.conf.template`
+— gzip, immutable caching on hashed assets, SPA fallback to `index.html` for
+GoRouter's real-URL routing, and baseline security headers).
 
-This produces `frontend/build/web/` — deploy that directory to any static
-host. Two common options:
+**Railway (recommended, same project as the backend):**
 
-- **Railway (static site service)**: add a second Railway service pointing
-  at `frontend/`, build command `flutter build web --release --dart-define=API_BASE_URL=$API_BASE_URL`,
-  start command serving `build/web` (e.g. via a tiny static server).
-- **Netlify/Vercel/Cloudflare Pages**: connect the repo, set the build
-  command above, publish directory `frontend/build/web`, and set
-  `API_BASE_URL` as a build-time environment variable substituted into the
-  `--dart-define`.
+1. In the same Railway project as the backend, **Add** a new service →
+   deploy from the same GitHub repo → set **root directory** to `frontend`.
+   Railway detects the `Dockerfile` automatically and builds with it instead
+   of Nixpacks.
+2. Set one Variable on this service: `API_BASE_URL` = your backend's public
+   URL plus `/api`, e.g. `https://portfolio-website-production-xxxx.up.railway.app/api`.
+   Railway passes service Variables through as Docker build ARGs
+   automatically when the Dockerfile declares `ARG API_BASE_URL` (it
+   already does), so this one variable is enough to bake the correct API
+   URL into the compiled JS at build time.
+3. Deploy. Once live, Railway gives this service its own
+   `*.up.railway.app` domain (or attach a custom domain under Settings →
+   Networking).
+4. **Required last step**: copy that frontend URL and set it as
+   `ALLOWED_ORIGINS` on the **backend** service (Variables tab), then
+   redeploy the backend. Until this is done, the backend's CORS policy will
+   reject every request from the deployed frontend — the site will load but
+   every API call (including the placeholder-data fallback triggering) will
+   fail silently to real data.
 
-Whichever origin you deploy the frontend to, add it to the backend's
-`ALLOWED_ORIGINS` — CORS will otherwise block every request from the
-deployed site.
+**Netlify/Vercel/Cloudflare Pages (alternative):** these platforms don't run
+your Dockerfile by default. Either point them at a local
+`flutter build web --release --dart-define=API_BASE_URL=...` output
+(`frontend/build/web/` as the publish directory, run with a real Flutter SDK
+on your own machine or in CI), or configure the platform's Docker/container
+build mode to use `frontend/Dockerfile` directly if it supports one. Same
+CORS step applies: add the deployed origin to the backend's
+`ALLOWED_ORIGINS`.
 
 ## 4. Custom domain + HTTPS
 

@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart' as launcher;
 import '../../core/widgets/common.dart';
 import '../../data/api_repository.dart';
 import '../../data/models.dart';
+import '../admin/auth/auth_controller.dart';
 
 class PublicationsPage extends ConsumerWidget {
   const PublicationsPage({super.key});

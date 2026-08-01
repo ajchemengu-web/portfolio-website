@@ -7,6 +7,7 @@ import '../../core/constants.dart';
 import '../../core/widgets/common.dart';
 import '../../core/widgets/responsive.dart';
 import '../../data/api_repository.dart';
+import '../admin/auth/auth_controller.dart';
 
 class ContactPage extends ConsumerStatefulWidget {
   const ContactPage({super.key});
